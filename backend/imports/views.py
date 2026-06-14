@@ -4,8 +4,10 @@ from rest_framework.response import Response
 from .models import ImportLog
 from expenses.models import Expense
 
-from datetime import datetime
 from services.csv_import_service import read_csv
+from services.validation_service import validate_expense_row
+
+from datetime import datetime
 
 
 class CSVUploadView(APIView):
@@ -24,6 +26,8 @@ class CSVUploadView(APIView):
 
         rows = read_csv(csv_file)
 
+        print("FIRST ROW:", rows[0])
+
         import_log = ImportLog.objects.create(
             filename=csv_file.name,
             total_rows=len(rows),
@@ -37,31 +41,42 @@ class CSVUploadView(APIView):
 
         for row in rows:
 
+            print("ROW:", row)
+
+            validation = validate_expense_row(row)
+
+            print("VALIDATION:", validation)
+
+            if not validation["is_valid"]:
+
+                failed_count += 1
+
+                continue
+
             try:
 
-                # Date Cleaning
                 date_value = str(
                     row.get("date", "")
                 ).strip()
 
                 try:
+
                     expense_date = datetime.strptime(
                         date_value,
                         "%d-%m-%Y"
                     ).date()
 
                 except ValueError:
+
                     expense_date = datetime.strptime(
                         date_value,
                         "%b-%d"
                     ).replace(year=2026).date()
 
-                # Amount Cleaning
                 amount_value = str(
                     row.get("amount", "0")
                 ).replace(",", "")
 
-                # Save Expense
                 Expense.objects.create(
                     date=expense_date,
                     description=str(

@@ -27,4 +27,9 @@ urlpatterns = [
         "api/imports/",
         include("imports.urls")
     ),
+
+    path(
+    "api/expenses/",
+    include("expenses.urls")
+),
 ]
